@@ -15,9 +15,8 @@ public class Steam {
     private final String GAMES_FILENAME = "steam/games.stm";
     private final String PLAYERS_FILENAME = "steam/player.stm";
 
-    // Constructor
     public Steam() throws IOException {
-        // Asegurar que el directorio 'steam' y 'downloads' existan
+
         File steamDir = new File(DIRECTORY);
         if (!steamDir.exists()) {
             steamDir.mkdir();
@@ -28,21 +27,17 @@ public class Steam {
             downloadsDir.mkdir();
         }
 
-        // Inicializar los archivos RandomAccessFile
-        // "rw" permite lectura y escritura
         codesFile = new RandomAccessFile(CODES_FILENAME, "rw");
         gamesFile = new RandomAccessFile(GAMES_FILENAME, "rw");
         playersFile = new RandomAccessFile(PLAYERS_FILENAME, "rw");
 
-        // Inicializar el archivo de códigos si es nuevo
         if (codesFile.length() == 0) {
-            codesFile.writeInt(1); // Código para nuevos juegos
-            codesFile.writeInt(1); // Código para nuevos clientes
-            codesFile.writeInt(1); // Código para nuevos downloads
+            codesFile.writeInt(1);
+            codesFile.writeInt(1);
+            codesFile.writeInt(1);
         }
     }
 
-    // Método para obtener el próximo código disponible
     public synchronized int getNextCode(String type) throws IOException {
         codesFile.seek(0);
         int gameCode = codesFile.readInt();
@@ -70,15 +65,12 @@ public class Steam {
         return nextCode;
     }
 
-    // Método para agregar un nuevo juego
     public void addGame(String titulo, char sistemaOperativo, int edadMinima, double precio, String imagenPath) throws IOException {
         int code = getNextCode("game");
         int contadorDownloads = 0;
 
-        // Convertir la imagen seleccionada a bytes
         byte[] imagenBytes = imageToBytes(imagenPath);
 
-        // Moverse al final del archivo para agregar el nuevo registro
         gamesFile.seek(gamesFile.length());
         gamesFile.writeInt(code);
         gamesFile.writeUTF(titulo);
@@ -90,30 +82,14 @@ public class Steam {
         gamesFile.write(imagenBytes);
     }
 
-//    // Método auxiliar para convertir una imagen a un arreglo de bytes
-//    private byte[] imageToBytes(String imagePath) throws IOException {
-//        File file = new File(imagePath);
-//        byte[] bytesArray = new byte[(int) file.length()];
-//        FileInputStream fis = new FileInputStream(file);
-//        try {
-//            fis.read(bytesArray);
-//        } finally {
-//            fis.close();
-//        }
-//        return bytesArray;
-//    }
-    // Método para agregar un nuevo jugador
     public void addPlayer(String username, String password, String nombre, Calendar nacimiento, String tipoUsuario) throws IOException {
         int code = getNextCode("user");
         int contadorDownloads = 0;
 
-        // Cargar la imagen desde el classpath
         byte[] imagenBytes = imageToBytes("img.png");
 
-        // Convertir Calendar a long (timestamp)
         long nacimientoTimestamp = nacimiento.getTimeInMillis();
 
-        // Moverse al final del archivo para agregar el nuevo registro
         playersFile.seek(playersFile.length());
         playersFile.writeInt(code);
         playersFile.writeUTF(username);
@@ -126,7 +102,6 @@ public class Steam {
         playersFile.writeUTF(tipoUsuario);
     }
 
-    // Método auxiliar para convertir una imagen a un arreglo de bytes
     private byte[] imageToBytes(String imagePath) throws IOException {
         InputStream is = getClass().getClassLoader().getResourceAsStream(imagePath);
         if (is == null) {
@@ -142,7 +117,6 @@ public class Steam {
         return buffer.toByteArray();
     }
 
-    // Método para cerrar los archivos al finalizar
     public void close() {
         try {
             if (codesFile != null) {
@@ -159,44 +133,38 @@ public class Steam {
         }
     }
 
-    // Método para descargar un juego
     public boolean downloadGame(int gameCode, int clientCode, char sistemaOperativo) throws IOException {
-        // Verificar si el juego existe y obtener sus datos
+
         Game game = getGameByCode(gameCode);
         if (game == null) {
             return false;
         }
 
-        // Verificar si el cliente existe y obtener sus datos
         Player player = getPlayerByCode(clientCode);
         if (player == null) {
             return false;
         }
 
-        // Verificar si el sistema operativo es compatible
         if (!isCompatible(game.getSistemaOperativo(), sistemaOperativo)) {
             return false;
         }
 
-        // Verificar si el cliente cumple con la edad mínima
         if (!isAgeAllowed(player.getNacimiento(), game.getEdadMinima())) {
             return false;
         }
 
-        // Crear el archivo de descarga
         int downloadCode = getNextCode("download");
         String downloadFilename = DOWNLOADS_DIRECTORY + "/download_" + downloadCode + ".stm";
         File downloadFile = new File(downloadFilename);
         FileWriter fw = new FileWriter(downloadFile);
         BufferedWriter bw = new BufferedWriter(fw);
         try {
-            // Formatear la fecha
+
             SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
             String fechaDownload = sdf.format(Calendar.getInstance().getTime());
 
-            // Escribir en el archivo de descarga
             bw.write("Fecha de Download: " + fechaDownload + "\n");
-            bw.write("Imagen del Juego: [IMAGE DATA]\n"); // Placeholder
+            bw.write("Imagen del Juego: [IMAGE DATA]\n");
             bw.write("Download #" + downloadCode + "\n");
             bw.write(player.getNombre() + " ha bajado " + game.getTitulo() + " a un precio de $ " + game.getPrecio() + "\n");
         } finally {
@@ -204,78 +172,73 @@ public class Steam {
             fw.close();
         }
 
-        // Actualizar los contadores de downloads
         updateGameDownloads(gameCode);
         updatePlayerDownloads(clientCode);
 
         return true;
     }
 
-    // Método para actualizar el contador de downloads de un juego
     private void updateGameDownloads(int gameCode) throws IOException {
         gamesFile.seek(0);
         while (gamesFile.getFilePointer() < gamesFile.length()) {
             int code = gamesFile.readInt();
             if (code == gameCode) {
-                // Saltar a la posición del contador de downloads
-                gamesFile.readUTF(); // Titulo
-                gamesFile.readChar(); // SO
-                gamesFile.readInt(); // Edad mínima
-                gamesFile.readDouble(); // Precio
+
+                gamesFile.readUTF();
+                gamesFile.readChar();
+                gamesFile.readInt();
+                gamesFile.readDouble();
                 long pos = gamesFile.getFilePointer();
                 int contador = gamesFile.readInt();
                 gamesFile.seek(pos);
                 gamesFile.writeInt(contador + 1);
                 break;
             } else {
-                // Saltar al siguiente registro
+
                 skipGameRecord();
             }
         }
     }
 
-    // Método para actualizar el contador de downloads de un jugador
     private void updatePlayerDownloads(int playerCode) throws IOException {
         playersFile.seek(0);
         while (playersFile.getFilePointer() < playersFile.length()) {
             int code = playersFile.readInt();
             if (code == playerCode) {
-                // Saltar a la posición del contador de downloads
-                playersFile.readUTF(); // Username
-                playersFile.readUTF(); // Password
-                playersFile.readUTF(); // Nombre
-                playersFile.readLong(); // Nacimiento
+
+                playersFile.readUTF();
+                playersFile.readUTF();
+                playersFile.readUTF();
+                playersFile.readLong();
                 long pos = playersFile.getFilePointer();
                 int contador = playersFile.readInt();
                 playersFile.seek(pos);
                 playersFile.writeInt(contador + 1);
                 break;
             } else {
-                // Saltar al siguiente registro
+
                 skipPlayerRecord();
             }
         }
     }
 
-    // Método para actualizar el precio de un juego
     public void updatePriceFor(int gameCode, double newPrice) throws IOException {
         gamesFile.seek(0);
         while (gamesFile.getFilePointer() < gamesFile.length()) {
             int code = gamesFile.readInt();
             if (code == gameCode) {
-                gamesFile.readUTF(); // Titulo
-                gamesFile.readChar(); // SO
-                gamesFile.readInt(); // Edad mínima
+                gamesFile.readUTF();
+                gamesFile.readChar();
+                gamesFile.readInt();
                 gamesFile.writeDouble(newPrice);
                 break;
             } else {
-                // Saltar al siguiente registro
+
                 skipGameRecord();
             }
         }
     }
 
-    // Método para generar un reporte para un cliente
     public void reportForClient(int codeClient, String txtFile) throws IOException {
         Player player = getPlayerByCode(codeClient);
         if (player == null) {
@@ -284,7 +247,7 @@ public class Steam {
         }
 
         File report = new File(txtFile);
-        FileWriter fw = new FileWriter(report, false); // Overwrite
+        FileWriter fw = new FileWriter(report, false);
         BufferedWriter bw = new BufferedWriter(fw);
         try {
             bw.write("Código: " + player.getCode() + "\n");
@@ -304,7 +267,6 @@ public class Steam {
         }
     }
 
-    // Método para imprimir todos los juegos disponibles
     public void printGames() throws IOException {
         gamesFile.seek(0);
         while (gamesFile.getFilePointer() < gamesFile.length()) {
@@ -317,7 +279,7 @@ public class Steam {
             int imagenLength = gamesFile.readInt();
             byte[] imagen = new byte[imagenLength];
             gamesFile.readFully(imagen);
-            // Mostrar los datos
+
             System.out.println("Código: " + code);
             System.out.println("Título: " + titulo);
             System.out.println("Sistema Operativo: " + so);
@@ -328,7 +290,6 @@ public class Steam {
         }
     }
 
-    // Métodos auxiliares para obtener un juego o jugador por código
     private Game getGameByCode(int gameCode) throws IOException {
         gamesFile.seek(0);
         while (gamesFile.getFilePointer() < gamesFile.length()) {
@@ -370,31 +331,29 @@ public class Steam {
         return null;
     }
 
-    // Métodos para saltar registros en archivos
     private void skipGameRecord() throws IOException {
-        gamesFile.readUTF(); // Titulo
-        gamesFile.readChar(); // SO
-        gamesFile.readInt(); // Edad mínima
-        gamesFile.readDouble(); // Precio
-        gamesFile.readInt(); // Contador downloads
+        gamesFile.readUTF();
+        gamesFile.readChar();
+        gamesFile.readInt();
+        gamesFile.readDouble();
+        gamesFile.readInt();
         int imagenLength = gamesFile.readInt();
         gamesFile.seek(gamesFile.getFilePointer() + imagenLength);
     }
 
     private void skipPlayerRecord() throws IOException {
-        playersFile.readUTF(); // Username
-        playersFile.readUTF(); // Password
-        playersFile.readUTF(); // Nombre
-        playersFile.readLong(); // Nacimiento
-        playersFile.readInt(); // Contador downloads
+        playersFile.readUTF();
+        playersFile.readUTF();
+        playersFile.readUTF();
+        playersFile.readLong();
+        playersFile.readInt();
         int imagenLength = playersFile.readInt();
         playersFile.seek(playersFile.getFilePointer() + imagenLength);
-        playersFile.readUTF(); // Tipo de usuario
+        playersFile.readUTF();
     }
 
-    // Métodos de verificación
     private boolean isCompatible(char gameSO, char clientSO) {
-        // Asumiendo que 'W' = Windows, 'M' = Mac, 'L' = Linux
+
         return gameSO == clientSO;
     }
 
@@ -407,7 +366,6 @@ public class Steam {
         return age >= edadMinima;
     }
 
-    // Clases internas para representar Game y Player
     private class Game {
 
         private int code;
@@ -449,7 +407,6 @@ public class Steam {
         }
     }
 
-    // Método para obtener un jugador por su nombre de usuario
     public steam.Player getPlayerByUsername(String username) throws IOException {
         playersFile.seek(0);
         while (playersFile.getFilePointer() < playersFile.length()) {
@@ -472,28 +429,26 @@ public class Steam {
         return null;
     }
 
-    // Método para actualizar detalles de un juego existente
     public boolean updateGameDetails(int gameCode, String newTitle, char newSo, int newAge, double newPrice) throws IOException {
         gamesFile.seek(0);
         while (gamesFile.getFilePointer() < gamesFile.length()) {
             int code = gamesFile.readInt();
             if (code == gameCode) {
-                gamesFile.writeUTF(newTitle); // Actualizar el título
-                gamesFile.writeChar(newSo); // Actualizar el sistema operativo
-                gamesFile.writeInt(newAge); // Actualizar la edad mínima
-                gamesFile.writeDouble(newPrice); // Actualizar el precio
+                gamesFile.writeUTF(newTitle);
+                gamesFile.writeChar(newSo);
+                gamesFile.writeInt(newAge);
+                gamesFile.writeDouble(newPrice);
                 return true;
             } else {
-                // Saltar al siguiente registro
+
                 skipGameRecord();
             }
         }
-        return false; // Si no se encuentra el juego con el código proporcionado
+        return false;
     }
 
-    // Método para eliminar un juego por su código
     public boolean deleteGame(int gameCode) throws IOException {
-        // Crear un archivo temporal para almacenar los registros restantes
+
         File tempFile = new File("steam/temp_games.stm");
         RandomAccessFile tempGamesFile = new RandomAccessFile(tempFile, "rw");
 
@@ -511,7 +466,7 @@ public class Steam {
             gamesFile.readFully(imagen);
 
             if (code != gameCode) {
-                // Copiar los registros que no coinciden con el código al archivo temporal
+
                 tempGamesFile.writeInt(code);
                 tempGamesFile.writeUTF(titulo);
                 tempGamesFile.writeChar(so);
@@ -528,14 +483,12 @@ public class Steam {
         gamesFile.close();
         tempGamesFile.close();
 
-        // Reemplazar el archivo original por el temporal
         File originalFile = new File(GAMES_FILENAME);
         originalFile.delete();
         tempFile.renameTo(originalFile);
 
-        // Reabrir el archivo original
         gamesFile = new RandomAccessFile(GAMES_FILENAME, "rw");
 
-        return found; // Retorna true si el juego fue encontrado y eliminado
+        return found;
     }
 }

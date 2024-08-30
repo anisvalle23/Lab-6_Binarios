@@ -25,7 +25,6 @@ public class Player {
         this.tipoUsuario = tipoUsuario;
     }
 
-    // Getters y Setters
     public int getCode() {
         return code;
     }
@@ -82,13 +81,11 @@ public class Player {
         this.tipoUsuario = tipoUsuario;
     }
 
-    // Nuevo método: obtener la fecha de nacimiento como String
     public String getFormattedNacimiento() {
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
         return sdf.format(this.nacimiento.getTime());
     }
 
-    // Nuevo método: verificar la contraseña
     public boolean checkPassword(String inputPassword) {
         return this.password.equals(inputPassword);
     }
